@@ -1,0 +1,123 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --color-bg: #f8f9fa;
+  --color-card: #ffffff;
+  --color-primary: #4a90d9;
+  --color-primary-dark: #3a7bc8;
+  --color-success: #52c41a;
+  --color-danger: #e74c3c;
+  --color-text: #2c3e50;
+  --color-text-secondary: #7f8c8d;
+  --color-border: #e8ecf1;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --font-size-base: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 28px;
+  --font-size-xxl: 36px;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+.view { display: none; height: 100%; flex-direction: column; }
+.view.active { display: flex; }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.stat-card {
+  background: var(--color-card);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  flex: 1;
+}
+
+.stat-label { font-size: 14px; color: var(--color-text-secondary); margin-bottom: 8px; }
+.stat-value { font-size: var(--font-size-xxl); font-weight: 700; color: var(--color-primary); }
+
+.btn-main {
+  width: 100%;
+  padding: 16px;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-main:active { background: var(--color-primary-dark); }
+.btn-main:focus-visible, .icon-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.home-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  gap: 24px;
+}
+
+.streak-badge {
+  font-size: 16px;
+  color: #f39c12;
+  font-weight: 600;
+}
+
+.stats-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.settings-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.study-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+}
+
+.btn-done { background: var(--color-success); }
+.btn-extra { background: #9b59b6; }

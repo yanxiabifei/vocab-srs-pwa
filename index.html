@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4a90d9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>每日单词打卡</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Home page -->
+  <div id="view-home" class="view active">
+    <header class="header">
+      <div class="streak-badge" id="streak-badge">已坚持 <span id="streak-days">0</span> 天</div>
+      <button class="icon-btn" id="btn-settings" aria-label="词库管理">&#9881;</button>
+    </header>
+    <main class="home-main">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">今日新学</div>
+          <div class="stat-value" id="new-count">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">待复习</div>
+          <div class="stat-value" id="review-count">0</div>
+        </div>
+      </div>
+      <button class="btn-main" id="btn-start">开始学习</button>
+    </main>
+  </div>
+
+  <!-- Study/review page -->
+  <div id="view-study" class="view">
+    <header class="header study-header">
+      <button class="icon-btn" id="btn-study-back" aria-label="返回">&#8592;</button>
+      <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <span class="progress-text" id="progress-text">0/0</span>
+    </header>
+    <main class="study-main" id="study-area">
+    </main>
+  </div>
+
+  <!-- Word bank management page -->
+  <div id="view-settings" class="view">
+    <header class="header">
+      <button class="icon-btn" id="btn-settings-back" aria-label="返回">&#8592;</button>
+      <h2>词库管理</h2>
+    </header>
+    <main class="settings-main" id="settings-area">
+    </main>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/srs.js"></script>
+  <script src="js/dictionary.js"></script>
+  <script src="js/wordbank.js"></script>
+  <script src="js/session.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
