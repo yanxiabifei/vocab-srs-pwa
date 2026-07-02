@@ -1,9 +1,10 @@
 // sw.js - Service Worker (offline cache)
-var CACHE_NAME = 'vocab-srs-v1';
+var CACHE_NAME = 'vocab-srs-v2';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './sw.js',
   './css/styles.css',
   './js/db.js',
   './js/srs.js',
@@ -13,6 +14,15 @@ var ASSETS = [
   './js/notifications.js',
   './js/ui.js',
   './js/app.js',
+  './icons/icon-72.png',
+  './icons/icon-96.png',
+  './icons/icon-128.png',
+  './icons/icon-144.png',
+  './icons/icon-152.png',
+  './icons/icon-180.png',
+  './icons/icon-192.png',
+  './icons/icon-384.png',
+  './icons/icon-512.png',
   './data/dictionary.json',
   './data/wordbooks/primary.json',
   './data/wordbooks/junior.json',
@@ -48,15 +58,26 @@ self.addEventListener('fetch', function(event) {
   event.respondWith(
     caches.open(CACHE_NAME).then(function(cache) {
       return cache.match(event.request).then(function(cached) {
+        // Stale-while-revalidate: return cache immediately,
+        // update cache from network in background for next visit
         var fetchPromise = fetch(event.request).then(function(response) {
           if (response && response.status === 200) {
             cache.put(event.request, response.clone());
           }
           return response;
         }).catch(function() {
-          return cached || new Response('Offline', { status: 503 });
+          return null;
         });
-        return cached || fetchPromise;
+
+        // Network-first for navigation (HTML), cache-first for assets
+        if (event.request.mode === 'navigate') {
+          return fetchPromise.then(function(networkResponse) {
+            return networkResponse || cached || new Response('Offline', { status: 503 });
+          });
+        }
+        return cached || fetchPromise.then(function(networkResponse) {
+          return networkResponse || new Response('Offline', { status: 503 });
+        });
       });
     })
   );
