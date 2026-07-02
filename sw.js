@@ -1,5 +1,5 @@
 // sw.js - Service Worker (offline cache)
-var CACHE_NAME = 'vocab-srs-v2';
+var CACHE_NAME = 'vocab-srs-v3';
 var ASSETS = [
   './',
   './index.html',

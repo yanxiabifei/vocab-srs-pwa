@@ -11,25 +11,43 @@ var WORD_BOOKS = {
 async function loadWordBook(bookKey, order) {
   order = order || 'sequential';
   var book = WORD_BOOKS[bookKey];
-  if (!book) throw new Error('Unknown word book: ' + bookKey);
 
-  var response = await fetch(book.file);
-  if (!response.ok) throw new Error('Failed to load ' + book.file);
-  var data = await response.json();
+  // Built-in book — load from JSON file
+  if (book) {
+    var response = await fetch(book.file);
+    if (!response.ok) throw new Error('Failed to load ' + book.file);
+    var data = await response.json();
+    var words = data.words;
+    if (!Array.isArray(words)) throw new Error('Invalid word book format: missing words array');
+    if (order === 'shuffled') {
+      for (var i = words.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = words[i]; words[i] = words[j]; words[j] = tmp;
+      }
+    }
+    return { bookKey: bookKey, name: data.name, words: words };
+  }
 
-  var words = data.words;
-  if (!Array.isArray(words)) throw new Error('Invalid word book format: missing words array');
-
-  if (order === 'shuffled') {
-    for (var i = words.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = words[i];
-      words[i] = words[j];
-      words[j] = tmp;
+  // Custom book — load from wordbook metadata
+  var customBooks = await getAllWordbooks();
+  for (var i = 0; i < customBooks.length; i++) {
+    if (customBooks[i].key === bookKey) {
+      var cb = customBooks[i];
+      var wordObjs = [];
+      for (var w = 0; w < cb.wordList.length; w++) {
+        wordObjs.push({ word: cb.wordList[w], meaning: '', phonetic: '' });
+      }
+      if (order === 'shuffled') {
+        for (var k = wordObjs.length - 1; k > 0; k--) {
+          var m = Math.floor(Math.random() * (k + 1));
+          var tmp = wordObjs[k]; wordObjs[k] = wordObjs[m]; wordObjs[m] = tmp;
+        }
+      }
+      return { bookKey: bookKey, name: cb.name, words: wordObjs };
     }
   }
 
-  return { bookKey: bookKey, name: data.name, words: words };
+  throw new Error('Unknown word book: ' + bookKey);
 }
 
 function extractWords(text) {
@@ -39,37 +57,44 @@ function extractWords(text) {
   var result = [];
   for (var i = 0; i < matches.length; i++) {
     var w = matches[i].toLowerCase();
-    if (!seen[w]) {
-      seen[w] = true;
-      result.push(w);
-    }
+    if (!seen[w]) { seen[w] = true; result.push(w); }
   }
   return result;
 }
 
 async function importFromText(text) {
-  return importWords(extractWords(text));
+  var words = extractWords(text);
+  if (words.length === 0) return { imported: 0, skipped: 0, notFound: [], bookName: null };
+  return importWords(words, '文本导入');
 }
 
 async function importFromFile(file) {
-  return new Promise((resolve, reject) => {
+  return new Promise(function(resolve, reject) {
     var reader = new FileReader();
     reader.onload = async function(e) {
       try {
-        var result = await importFromText(e.target.result);
+        var words = extractWords(e.target.result);
+        if (words.length === 0) {
+          resolve({ imported: 0, skipped: 0, notFound: [], bookName: null });
+          return;
+        }
+        var fileName = file.name.replace(/\.(txt|text)$/i, '');
+        var result = await importWords(words, fileName || '文件导入');
         resolve(result);
-      } catch (err) {
-        reject(err);
-      }
+      } catch (err) { reject(err); }
     };
     reader.onerror = reject;
     reader.readAsText(file);
   });
 }
 
-async function importWords(words) {
+async function importWords(words, label) {
+  var today = new Date().toISOString().slice(0, 10);
+  var bookName = label + ' ' + today;
+
   var imported = 0, skipped = 0;
   var notFound = [];
+  var actualWordList = [];
 
   for (var i = 0; i < words.length; i++) {
     var word = words[i];
@@ -79,29 +104,44 @@ async function importWords(words) {
     var dictEntry = await lookupWord(word);
     if (!dictEntry) {
       notFound.push(word);
+      actualWordList.push(word); // still track for the wordbook
       continue;
     }
 
+    actualWordList.push(word);
+  }
+
+  if (actualWordList.length === 0) {
+    return { imported: 0, skipped: skipped, notFound: notFound, bookName: null };
+  }
+
+  // Create custom wordbook
+  var book = await createWordbook(bookName, actualWordList);
+
+  // Import words with dictionary meanings
+  for (var i = 0; i < actualWordList.length; i++) {
+    var word = actualWordList[i];
+    var dictEntry = await lookupWord(word);
     await addWord({
       word: word.toLowerCase(),
-      meaning: dictEntry.meaning,
-      phonetic: dictEntry.phonetic || '',
+      meaning: dictEntry ? dictEntry.meaning : '(待补充)',
+      phonetic: dictEntry ? (dictEntry.phonetic || '') : '',
       srsLevel: 1,
       nextReview: null,
       firstLearningDone: 0,
       isNewWord: 1,
-      sourceBook: 'custom',
+      sourceBook: book.key,
       createdAt: new Date().toISOString(),
       degradeCount: 0
     });
     imported++;
   }
 
-  return { imported: imported, skipped: skipped, notFound: notFound };
+  return { imported: imported, skipped: skipped, notFound: notFound, bookName: bookName, bookKey: book.key };
 }
 
 async function replenishNewWords(dailyNewCount, bookKey, order) {
-  var currentNewWords = await getNewWords(99999);
+  var currentNewWords = await getNewWords(99999, bookKey);
   var unfinishedCount = currentNewWords.length;
 
   var needMore = dailyNewCount - unfinishedCount;
@@ -161,9 +201,7 @@ async function getExtraWords(count) {
 
   for (var i = learned.length - 1; i > 0; i--) {
     var j = Math.floor(Math.random() * (i + 1));
-    var tmp = learned[i];
-    learned[i] = learned[j];
-    learned[j] = tmp;
+    var tmp = learned[i]; learned[i] = learned[j]; learned[j] = tmp;
   }
   return learned.slice(0, count);
 }

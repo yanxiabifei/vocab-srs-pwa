@@ -45,20 +45,6 @@ function setupInstallPrompt() {
     deferredPrompt = null;
     showInstallBanner(false);
   });
-
-  // Handle install button click
-  document.addEventListener('click', function(e) {
-    if (e.target.id === 'btn-install' && deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then(function(result) {
-        if (result.outcome === 'accepted') {
-          isInstalled = true;
-          showInstallBanner(false);
-        }
-        deferredPrompt = null;
-      });
-    }
-  });
 }
 
 function showInstallBanner(show) {
@@ -69,16 +55,33 @@ function showInstallBanner(show) {
   }
 }
 
+function triggerInstall() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(result) {
+      if (result.outcome === 'accepted') {
+        isInstalled = true;
+        showInstallBanner(false);
+      }
+      deferredPrompt = null;
+    });
+  } else if (isInstalled) {
+    alert('应用已安装！');
+  } else {
+    alert('安装暂不可用。\n\n请通过浏览器菜单选择"添加到主屏幕"或"安装应用"。\n\n如使用 Edge，请在地址栏右侧点击"应用"图标。');
+  }
+}
+
 function showView(viewName) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  const view = document.getElementById('view-' + viewName);
+  var view = document.getElementById('view-' + viewName);
   if (view) view.classList.add('active');
 }
 
 document.addEventListener('click', async (e) => {
-  const target = e.target.closest('[id]');
+  var target = e.target.closest('[id]');
   if (!target) return;
-  const id = target.id;
+  var id = target.id;
 
   if (id === 'btn-settings') {
     showView('settings');
@@ -94,6 +97,10 @@ document.addEventListener('click', async (e) => {
     }
     showView('home');
     renderHomePage();
+  } else if (id === 'btn-install') {
+    triggerInstall();
+  } else if (id === 'btn-install-app') {
+    triggerInstall();
   }
 });
 
@@ -149,9 +156,10 @@ async function checkDegradations() {
 
 async function handleStartButton() {
   var now = new Date();
+  var bookKey = await getSetting('currentBook') || 'gaokao';
   var dueReviews = await getDueReviews(now);
-  var newWords = await getNewWords(await getSetting('dailyNewCount') || 5);
-  var newCount = await getNewWordsCount();
+  var newWords = await getNewWords(await getSetting('dailyNewCount') || 5, bookKey);
+  var newCount = await getNewWordsCount(bookKey);
   var reviewCount = await getPendingReviewCount(now);
 
   if (newCount === 0 && reviewCount === 0) {
@@ -191,32 +199,7 @@ async function startSession() {
   renderStudyPage();
 }
 
-// ========== 回合完成处理 ==========
-
-async function onRoundPassed() {
-  var result = currentSession.advanceRound();
-  if (result === 'next_round') {
-    renderStudyPage();
-    return;
-  }
-
-  var word = currentSession.queue[currentSession.currentIndex - 1];
-  if (!word) return;
-
-  if (!currentSession.isExtra) {
-    await completeWordReview(word);
-  }
-
-  if (result === 'session_done') {
-    currentSession = null;
-    showView('home');
-    await renderHomePage();
-    scheduleNotification();
-  } else {
-    currentSession.nextWord();
-    renderStudyPage();
-  }
-}
+// ========== 单词复习完成回调 ==========
 
 async function completeWordReview(word) {
   var now = new Date();
@@ -243,7 +226,7 @@ async function completeWordReview(word) {
   await logReview(word.id, word.word, 'completed');
 }
 
-// ========== 词库管理 & 学习页事件代理 ==========
+// ========== 学习页事件代理 ==========
 
 document.addEventListener('click', async function(e) {
   // 先尝试 study 交互
@@ -271,8 +254,13 @@ document.addEventListener('click', async function(e) {
     if (!text) return;
     document.getElementById('import-result').innerHTML = '<p class="import-loading">正在导入...</p>';
     var result = await importFromText(text);
-    document.getElementById('import-result').innerHTML = '<p>导入完成：新增 ' + result.imported + '，已存在 ' + result.skipped + (result.notFound.length > 0 ? '，未找到释义 ' + result.notFound.length + ' 个' : '') + '</p>';
+    var msg = result.bookName
+      ? '导入完成！已创建词书「' + result.bookName + '」<br>新增 ' + result.imported + ' 词，已存在 ' + result.skipped + ' 词' + (result.notFound.length > 0 ? '，' + result.notFound.length + ' 词未找到释义' : '')
+      : '未提取到有效单词';
+    document.getElementById('import-result').innerHTML = '<p>' + msg + '</p>';
     document.getElementById('import-text').value = '';
+    // Refresh to show new custom book in dropdown
+    setTimeout(function() { renderSettingsPage(); }, 600);
   }
 
   if (id === 'btn-new-minus' || id === 'btn-new-plus') {
@@ -300,6 +288,10 @@ document.addEventListener('change', async function(e) {
     if (!file) return;
     document.getElementById('import-result').innerHTML = '<p class="import-loading">正在导入...</p>';
     var result = await importFromFile(file);
-    document.getElementById('import-result').innerHTML = '<p>导入完成：新增 ' + result.imported + '，已存在 ' + result.skipped + (result.notFound.length > 0 ? '，未找到释义 ' + result.notFound.length + ' 个' : '') + '</p>';
+    var msg = result.bookName
+      ? '导入完成！已创建词书「' + result.bookName + '」<br>新增 ' + result.imported + ' 词，已存在 ' + result.skipped + ' 词' + (result.notFound.length > 0 ? '，' + result.notFound.length + ' 词未找到释义' : '')
+      : '未提取到有效单词';
+    document.getElementById('import-result').innerHTML = '<p>' + msg + '</p>';
+    setTimeout(function() { renderSettingsPage(); }, 600);
   }
 });

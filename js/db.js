@@ -1,6 +1,6 @@
 // db.js - IndexedDB 操作层
 const DB_NAME = 'vocab_srs';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 var db;
 
 function openDB() {
@@ -9,28 +9,53 @@ function openDB() {
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
+      var oldVersion = event.oldVersion;
 
-      const vocabStore = db.createObjectStore('vocabulary', {
-        keyPath: 'id', autoIncrement: true
-      });
-      vocabStore.createIndex('word', 'word', { unique: true });
-      vocabStore.createIndex('nextReview', 'nextReview');
-      vocabStore.createIndex('srsLevel', 'srsLevel');
-      vocabStore.createIndex('isNewWord', 'isNewWord');
+      if (oldVersion < 1) {
+        var vocabStore = db.createObjectStore('vocabulary', {
+          keyPath: 'id', autoIncrement: true
+        });
+        vocabStore.createIndex('word', 'word', { unique: true });
+        vocabStore.createIndex('nextReview', 'nextReview');
+        vocabStore.createIndex('srsLevel', 'srsLevel');
+        vocabStore.createIndex('isNewWord', 'isNewWord');
 
-      const logStore = db.createObjectStore('review_log', {
-        keyPath: 'id', autoIncrement: true
-      });
-      logStore.createIndex('wordId', 'wordId');
-      logStore.createIndex('timestamp', 'timestamp');
+        var logStore = db.createObjectStore('review_log', {
+          keyPath: 'id', autoIncrement: true
+        });
+        logStore.createIndex('wordId', 'wordId');
+        logStore.createIndex('timestamp', 'timestamp');
 
-      db.createObjectStore('settings', { keyPath: 'key' });
-      db.createObjectStore('dictionary_cache', { keyPath: 'word' });
+        db.createObjectStore('settings', { keyPath: 'key' });
+        db.createObjectStore('dictionary_cache', { keyPath: 'word' });
+      }
+
+      if (oldVersion < 2) {
+        var wbStore = db.createObjectStore('custom_wordbooks', { keyPath: 'key' });
+        wbStore.createIndex('createdAt', 'createdAt');
+      }
     };
 
     request.onsuccess = (event) => resolve(event.target.result);
     request.onerror = (event) => reject(event.target.error);
   });
+}
+
+// --- Custom Wordbooks ---
+async function createWordbook(name, wordList) {
+  var key = 'custom_' + Date.now();
+  var entry = {
+    key: key,
+    name: name,
+    wordList: wordList,
+    createdAt: new Date().toISOString()
+  };
+  await promisify(tx('custom_wordbooks', 'readwrite').add(entry));
+  return entry;
+}
+
+async function getAllWordbooks() {
+  return promisify(tx('custom_wordbooks').getAll());
 }
 
 // --- 通用事务辅助 ---
@@ -92,16 +117,26 @@ async function getDueReviews(now) {
   return promisify(index.getAll(range));
 }
 
-async function getNewWords(limit) {
+async function getNewWords(limit, bookKey) {
   var index = tx('vocabulary').index('isNewWord');
   var range = IDBKeyRange.only(1);
   var all = await promisify(index.getAll(range));
+  // Filter by book if specified
+  if (bookKey) {
+    all = all.filter(function(w) { return w.sourceBook === bookKey; });
+  }
   all.sort(function(a, b) { return a.id - b.id; });
   return all.slice(0, limit);
 }
 
-async function getNewWordsCount() {
-  return promisify(tx('vocabulary').index('isNewWord').count(IDBKeyRange.only(1)));
+async function getNewWordsCount(bookKey) {
+  var index = tx('vocabulary').index('isNewWord');
+  var range = IDBKeyRange.only(1);
+  var all = await promisify(index.getAll(range));
+  if (bookKey) {
+    all = all.filter(function(w) { return w.sourceBook === bookKey; });
+  }
+  return all.length;
 }
 
 async function getCompletedWordsCount() {
