@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.yanxiabifei.vocabsrspwa",
+    "sha256_cert_fingerprints": ["20:F0:76:74:DC:93:DC:3B:DE:DF:46:9A:E6:5D:6E:DB:09:CB:9E:83:7A:A5:2D:89:52:FA:FE:96:63:E3:C5:9C"]
+  }
+}]
