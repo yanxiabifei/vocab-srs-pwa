@@ -1,5 +1,7 @@
 // app.js - Application entry point
 var db;
+var deferredPrompt = null; // beforeinstallprompt event
+var isInstalled = false;
 
 async function init() {
   try {
@@ -14,11 +16,56 @@ async function init() {
     await checkDegradations();
     renderHomePage();
     startNotificationTimer();
+    setupInstallPrompt();
   } catch (err) {
     console.error('Init failed:', err);
     document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-danger)">'
       + '<h2>初始化失败</h2><p>请检查浏览器是否支持 IndexedDB，或尝试刷新页面。</p>'
       + '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:12px">' + err.message + '</p></div>';
+  }
+}
+
+// ========== PWA 安装处理 ==========
+
+function setupInstallPrompt() {
+  // Check if already installed
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    isInstalled = true;
+    return;
+  }
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBanner(true);
+  });
+
+  window.addEventListener('appinstalled', function() {
+    isInstalled = true;
+    deferredPrompt = null;
+    showInstallBanner(false);
+  });
+
+  // Handle install button click
+  document.addEventListener('click', function(e) {
+    if (e.target.id === 'btn-install' && deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(result) {
+        if (result.outcome === 'accepted') {
+          isInstalled = true;
+          showInstallBanner(false);
+        }
+        deferredPrompt = null;
+      });
+    }
+  });
+}
+
+function showInstallBanner(show) {
+  var banner = document.getElementById('install-banner');
+  if (banner) {
+    if (show) { banner.classList.add('visible'); }
+    else { banner.classList.remove('visible'); }
   }
 }
 
