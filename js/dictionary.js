@@ -15,7 +15,7 @@ async function ensureDictionaryLoaded() {
         return;
       }
 
-      var response = await fetch('data/dictionary.json');
+      var response = await fetchWithTimeout('data/dictionary.json', 15000);
       if (!response.ok) throw new Error('Dictionary fetch failed');
       var dict = await response.json();
 

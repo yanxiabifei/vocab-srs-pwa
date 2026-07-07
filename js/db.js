@@ -3,6 +3,23 @@ const DB_NAME = 'vocab_srs';
 const DB_VERSION = 2;
 var db;
 
+// Shared utility: fetch with timeout (used by dictionary.js and wordbank.js)
+function fetchWithTimeout(url, ms) {
+  ms = ms || 10000;
+  return new Promise(function(resolve, reject) {
+    var timer = setTimeout(function() {
+      reject(new Error('Fetch timeout for ' + url));
+    }, ms);
+    fetch(url).then(function(response) {
+      clearTimeout(timer);
+      resolve(response);
+    }).catch(function(err) {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);

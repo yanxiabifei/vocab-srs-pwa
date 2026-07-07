@@ -10,15 +10,29 @@ async function init() {
         console.warn('SW registration failed:', e);
       });
     }
+    // Phase 1: Open DB and init settings (required for UI)
     db = await openDB();
     await initSettings();
-    await checkDailyReset();
-    await checkDegradations();
+
+    // Render the home page IMMEDIATELY so the user sees a working UI,
+    // even if the background data loading is slow or fails.
     renderHomePage();
+
+    // Phase 2: Background data loading — non-blocking, won't freeze the page
+    try {
+      await checkDailyReset();
+      await checkDegradations();
+      renderHomePage(); // Re-render with updated counts
+    } catch (err) {
+      console.warn('Background data loading failed:', err);
+      // Home page is already showing — don't hide it
+    }
+
     startNotificationTimer();
     setupInstallPrompt();
   } catch (err) {
     console.error('Init failed:', err);
+    // Only show error page if the DB/settings phase itself fails
     document.body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-danger)">'
       + '<h2>初始化失败</h2><p>请检查浏览器是否支持 IndexedDB，或尝试刷新页面。</p>'
       + '<p style="font-size:12px;color:var(--color-text-secondary);margin-top:12px">' + err.message + '</p></div>';

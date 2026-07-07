@@ -14,7 +14,7 @@ async function loadWordBook(bookKey, order) {
 
   // Built-in book — load from JSON file
   if (book) {
-    var response = await fetch(book.file);
+    var response = await fetchWithTimeout(book.file, 15000);
     if (!response.ok) throw new Error('Failed to load ' + book.file);
     var data = await response.json();
     var words = data.words;
